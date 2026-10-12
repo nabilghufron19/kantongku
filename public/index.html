@@ -2,7 +2,8 @@
 <html lang="id">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="author" content="Nabil Ghufron">
 <meta name="theme-color" content="#2E3FA3">
 <title>Kantong - Catatan Keuangan Pribadi</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -23,7 +24,9 @@
       <div class="user-chip" id="userChip"></div>
     </div>
   </aside>
-  <main class="main"><div id="view"></div></main>
+  <main class="main"><div id="view"></div>
+    <footer class="powered">Powered by <b>Nabil Ghufron</b> 2026</footer>
+  </main>
 </div>
 
 <button class="fab" id="fab" data-action="add" aria-label="Catat transaksi baru" hidden>
@@ -55,6 +58,7 @@
       <div class="err" id="txErr" role="alert"></div>
     </div>
     <div class="dlg-foot">
+      <button type="button" class="btn danger" id="txDelete" hidden>Hapus</button>
       <button type="button" class="btn ghost" data-action="close">Batal</button>
       <button type="button" class="btn" id="saveMore">Simpan dan tambah lagi</button>
       <button type="submit" class="btn primary" id="txSave">Simpan</button>
