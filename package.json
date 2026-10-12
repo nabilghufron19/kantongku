@@ -1,0 +1,23 @@
+{
+  "name": "kantong",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Kantong - catatan keuangan pribadi. Cloudflare Pages + Neon (PostgreSQL).",
+  "scripts": {
+    "dev": "npx wrangler pages dev public --compatibility-date=2025-09-01 --port 8788",
+    "test": "node --test",
+    "db:migrate": "node scripts/migrate.mjs",
+    "user:reset": "node scripts/reset-password.mjs",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.0"
+  },
+  "devDependencies": {
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

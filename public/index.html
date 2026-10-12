@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2E3FA3">
+<title>Kantong - Catatan Keuangan Pribadi</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body data-mode="loading">
+
+<div id="boot" class="boot" role="status"><div class="spinner"></div><p>Memuat Kantong</p></div>
+
+<div id="authRoot" class="auth-root" hidden></div>
+
+<div class="app" id="appShell" hidden>
+  <aside class="side">
+    <div class="brand"><div class="logo" aria-hidden="true">👛</div><div><b>Kantong</b><small>Catatan keuangan pribadi</small></div></div>
+    <nav class="nav" id="nav" aria-label="Menu utama"></nav>
+    <div class="side-foot">
+      <div class="side-note">Tekan <kbd>N</kbd> untuk mencatat transaksi baru.</div>
+      <div class="user-chip" id="userChip"></div>
+    </div>
+  </aside>
+  <main class="main"><div id="view"></div></main>
+</div>
+
+<button class="fab" id="fab" data-action="add" aria-label="Catat transaksi baru" hidden>
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+  <span>Catat</span>
+</button>
+
+<dialog id="txDlg" aria-labelledby="txTitle">
+  <form id="txForm" autocomplete="off" novalidate>
+    <div class="dlg-head"><h2 id="txTitle">Catat transaksi</h2><button type="button" class="icon-btn" data-action="close" aria-label="Tutup"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="dlg-body">
+      <div class="seg" role="radiogroup" aria-label="Jenis transaksi">
+        <input type="radio" name="type" id="tOut" value="out" checked><label for="tOut">Pengeluaran</label>
+        <input type="radio" name="type" id="tIn" value="in"><label for="tIn">Pemasukan</label>
+      </div>
+      <div class="field">
+        <label for="fAmount">Jumlah</label>
+        <div class="amt"><span>Rp</span><input id="fAmount" name="amount" inputmode="numeric" placeholder="0" maxlength="16"></div>
+        <div class="chips"><button type="button" data-add="5000">+5 rb</button><button type="button" data-add="10000">+10 rb</button><button type="button" data-add="20000">+20 rb</button><button type="button" data-add="50000">+50 rb</button><button type="button" data-add="100000">+100 rb</button><button type="button" data-add="clear">Hapus</button></div>
+      </div>
+      <div class="two">
+        <div class="field"><label for="fCat">Kategori</label><select id="fCat" name="categoryId"></select></div>
+        <div class="field"><label for="fDate">Tanggal</label><input type="date" id="fDate" name="date"></div>
+      </div>
+      <div class="two">
+        <div class="field"><label for="fMethod">Dibayar dengan</label><select id="fMethod" name="method"></select></div>
+        <div class="field"><label for="fNote">Catatan</label><input id="fNote" name="note" maxlength="120" placeholder="Opsional"></div>
+      </div>
+      <div class="err" id="txErr" role="alert"></div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn ghost" data-action="close">Batal</button>
+      <button type="button" class="btn" id="saveMore">Simpan dan tambah lagi</button>
+      <button type="submit" class="btn primary" id="txSave">Simpan</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="catDlg" aria-labelledby="catTitle">
+  <form id="catForm" autocomplete="off" novalidate>
+    <div class="dlg-head"><h2 id="catTitle">Kategori</h2><button type="button" class="icon-btn" data-action="close" aria-label="Tutup"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="dlg-body">
+      <div class="two">
+        <div class="field"><label for="cName">Nama kategori</label><input id="cName" name="name" maxlength="40"></div>
+        <div class="field"><label for="cType">Jenis</label><select id="cType" name="type"><option value="out">Pengeluaran</option><option value="in">Pemasukan</option></select></div>
+      </div>
+      <div class="two">
+        <div class="field"><label for="cIcon">Ikon (emoji)</label><input id="cIcon" name="icon" maxlength="8"></div>
+        <div class="field"><label for="cColor">Warna</label><input class="colorin" type="color" id="cColor" name="color" value="#2E3FA3"></div>
+      </div>
+      <div class="emojis" id="emojis"></div>
+      <div class="err" id="catErr" role="alert"></div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn ghost" data-action="close">Batal</button>
+      <button type="submit" class="btn primary" id="catSave">Simpan</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="passDlg" aria-labelledby="passTitle">
+  <form id="passForm" autocomplete="off" novalidate>
+    <div class="dlg-head"><h2 id="passTitle">Ganti kata sandi</h2><button type="button" class="icon-btn" data-action="close" aria-label="Tutup"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="dlg-body">
+      <div class="field"><label for="pCur">Kata sandi saat ini</label><input type="password" id="pCur" name="currentPassword" autocomplete="current-password"></div>
+      <div class="field"><label for="pNew">Kata sandi baru</label><input type="password" id="pNew" name="newPassword" autocomplete="new-password"></div>
+      <div class="field"><label for="pNew2">Ulangi kata sandi baru</label><input type="password" id="pNew2" name="again" autocomplete="new-password"></div>
+      <p class="muted small">Setelah diganti, perangkat lain akan keluar otomatis.</p>
+      <div class="err" id="passErr" role="alert"></div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn ghost" data-action="close">Batal</button>
+      <button type="submit" class="btn primary" id="passSave">Ganti kata sandi</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="confirmDlg" aria-labelledby="cfTitle">
+  <form id="cfForm" autocomplete="off" novalidate>
+    <div class="dlg-head"><h2 id="cfTitle"></h2></div>
+    <div class="dlg-body">
+      <p id="cfMsg"></p>
+      <div class="field" id="cfPassWrap" hidden><label for="cfPass">Kata sandi</label><input type="password" id="cfPass" autocomplete="current-password"></div>
+      <div class="err" id="cfErr" role="alert"></div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn ghost" id="cfCancel">Batal</button>
+      <button type="submit" class="btn primary" id="cfOk">Lanjutkan</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="importFile" accept="application/json,.json" hidden>
+
+<script type="module" src="/assets/js/main.js"></script>
+</body>
+</html>
