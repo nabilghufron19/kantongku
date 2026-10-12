@@ -1,58 +1,92 @@
-// Layar masuk / daftar.
-import { api } from '../api.js';
-import { login, register } from '../store.js';
-import { $, esc } from '../util.js';
-import { busy, setMode } from '../ui.js';
+// Kriptografi: hash kata sandi (PBKDF2) dan token sesi (JWT HS256) via Web Crypto.
+// Cloudflare Workers membatasi PBKDF2 maksimal 100.000 iterasi.
 
-export async function showAuth(notice = '') {
-  setMode('auth');
-  let cfg = { registrationOpen: false, firstRun: false };
-  try { cfg = await api.get('/auth/config'); } catch (e) { notice = e.message; }
-  let mode = cfg.firstRun ? 'register' : 'login';
-  const root = $('#authRoot');
+const enc = new TextEncoder();
+export const DEFAULT_ITERATIONS = 100_000;
 
-  const draw = (error = '', values = {}) => {
-    const reg = mode === 'register';
-    root.innerHTML = `
-    <div class="auth-card">
-      <div class="brand"><div class="logo" aria-hidden="true">👛</div><div><b>Kantong</b><small>Catatan keuangan pribadi</small></div></div>
-      <h1>${reg ? 'Buat akun' : 'Masuk'}</h1>
-      <p class="lead">${reg ? (cfg.firstRun ? 'Akun pertama ini menjadi pemilik aplikasi. Setelah itu pendaftaran ditutup.' : 'Daftarkan akun baru.') : 'Masuk untuk melihat catatan keuangan Anda.'}</p>
-      ${notice ? `<div class="auth-note" role="alert">${esc(notice)}</div>` : ''}
-      <form id="authForm" novalidate>
-        ${reg ? `<div class="field"><label for="aName">Nama tampilan</label><input id="aName" name="name" maxlength="40" autocomplete="name" value="${esc(values.name || '')}"></div>` : ''}
-        <div class="field"><label for="aUser">Nama pengguna</label><input id="aUser" name="username" maxlength="30" autocomplete="username" autocapitalize="none" spellcheck="false" value="${esc(values.username || '')}"></div>
-        <div class="field"><label for="aPass">Kata sandi</label><input type="password" id="aPass" name="password" autocomplete="${reg ? 'new-password' : 'current-password'}"></div>
-        ${reg ? '<p class="muted small" style="margin-top:-6px">Nama pengguna 3-30 karakter (huruf, angka, titik, garis bawah). Kata sandi minimal 8 karakter.</p>' : ''}
-        <div class="err" id="authErr" role="alert">${esc(error)}</div>
-        <button class="btn primary" type="submit">${reg ? 'Daftar dan masuk' : 'Masuk'}</button>
-      </form>
-      ${cfg.registrationOpen && !cfg.firstRun ? `<p class="auth-switch">${reg ? 'Sudah punya akun?' : 'Belum punya akun?'} <button type="button" id="authSwitch">${reg ? 'Masuk' : 'Daftar'}</button></p>` : ''}
-      <p class="powered">Powered by <b>Nabil Ghufron</b> 2026</p>
-    </div>`;
-    (reg ? $('#aName') : $('#aUser')).focus();
-  };
-  draw();
+const toB64u = (bytes) => {
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+const fromB64u = (s) => {
+  const padded = s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (s.length % 4)) % 4);
+  const bin = atob(padded);
+  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+};
 
-  return new Promise((resolve) => {
-    root.onclick = (e) => {
-      if (e.target.id === 'authSwitch') { mode = mode === 'login' ? 'register' : 'login'; notice = ''; draw(); }
-    };
-    root.onsubmit = async (e) => {
-      e.preventDefault();
-      const f = e.target.elements;
-      const values = { name: f.name ? f.name.value : '', username: f.username.value };
-      const password = f.password.value;
-      if (!values.username.trim() || !password) return draw('Isi nama pengguna dan kata sandi.', values);
-      try {
-        await busy($('button[type=submit]', root), () => (mode === 'register' ? register(values.name, values.username, password) : login(values.username, password)));
-        root.innerHTML = '';
-        resolve();
-      } catch (err) {
-        notice = '';
-        draw(err.message, values);
-        if (err.field === 'password') $('#aPass').focus();
-      }
-    };
-  });
+function safeEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
+}
+
+async function derive(password, salt, iterations) {
+  const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations, hash: 'SHA-256' }, key, 256);
+  return new Uint8Array(bits);
+}
+
+export async function hashPassword(password, iterations = DEFAULT_ITERATIONS) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const hash = await derive(password, salt, iterations);
+  return `pbkdf2$sha256$${iterations}$${toB64u(salt)}$${toB64u(hash)}`;
+}
+
+export async function verifyPassword(password, stored) {
+  try {
+    const [scheme, algo, iter, salt, hash] = String(stored).split('$');
+    if (scheme !== 'pbkdf2' || algo !== 'sha256') return false;
+    const iterations = Number(iter);
+    if (!Number.isInteger(iterations) || iterations < 1 || iterations > 1_000_000) return false;
+    const actual = await derive(password, fromB64u(salt), iterations);
+    return safeEqual(actual, fromB64u(hash));
+  } catch {
+    return false;
+  }
+}
+
+// Hash palsu untuk menyamakan waktu respons saat pengguna tidak ditemukan.
+export const DUMMY_HASH = 'pbkdf2$sha256$100000$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+
+async function hmacKey(secret) {
+  return crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
+}
+
+export async function signToken(payload, secret) {
+  const head = toB64u(enc.encode(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));
+  const body = toB64u(enc.encode(JSON.stringify(payload)));
+  const sig = await crypto.subtle.sign('HMAC', await hmacKey(secret), enc.encode(`${head}.${body}`));
+  return `${head}.${body}.${toB64u(new Uint8Array(sig))}`;
+}
+
+export async function verifyToken(token, secret) {
+  try {
+    const parts = String(token).split('.');
+    if (parts.length !== 3) return null;
+    const [head, body, sig] = parts;
+    const header = JSON.parse(new TextDecoder().decode(fromB64u(head)));
+    if (header.alg !== 'HS256') return null;
+    const ok = await crypto.subtle.verify('HMAC', await hmacKey(secret), fromB64u(sig), enc.encode(`${head}.${body}`));
+    if (!ok) return null;
+    const payload = JSON.parse(new TextDecoder().decode(fromB64u(body)));
+    if (!payload || typeof payload.exp !== 'number' || payload.exp < Math.floor(Date.now() / 1000)) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+// Kata sandi sementara yang mudah dibaca (tanpa 0/O/1/l/I). Memakai pengambilan sampel penolakan agar tidak bias.
+const TEMP_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+export function randomPassword(length = 10) {
+  let out = '';
+  const limit = 256 - (256 % TEMP_ALPHABET.length);
+  while (out.length < length) {
+    for (const b of crypto.getRandomValues(new Uint8Array(length * 2))) {
+      if (b < limit && out.length < length) out += TEMP_ALPHABET[b % TEMP_ALPHABET.length];
+    }
+  }
+  return out;
 }
