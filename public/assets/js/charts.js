@@ -25,7 +25,9 @@ export function donut(byCat, total) {
 }
 
 export function dayChart(m, byDay) {
-  const W = 640, H = 210, L = 46, B = 24, T = 10, R = 6, n = byDay.length;
+  // ukuran gambar menyesuaikan layar supaya angka sumbu tetap terbaca di ponsel
+  const narrow = window.matchMedia('(max-width: 820px)').matches;
+  const W = narrow ? 340 : 640, H = narrow ? 190 : 210, L = narrow ? 40 : 46, B = 24, T = 10, R = 6, n = byDay.length;
   const max = Math.max(...byDay, 1), step = niceStep(max / 4), top = step * Math.ceil(max / step);
   const bw = (W - L - R) / n, ch = H - T - B;
   const today = +todayStr().slice(8);

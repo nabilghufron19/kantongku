@@ -1,10 +1,10 @@
 // Titik masuk: routing, tema, dan pengelola aksi.
 import { onUnauthorized } from './api.js';
-import { state, boot, resetState, removeTx, restoreTx, removeCat, setBudget, exportData, importData, clearData, logout, deleteAccount, renameUser } from './store.js';
+import { state, boot, resetState, removeCat, setBudget, exportData, importData, clearData, logout, deleteAccount, renameUser } from './store.js';
 import { view, setRenderer, rerender } from './view.js';
 import { $, $$, esc, TABS, thisMonth, shiftMonth, parseAmt, fmtInput, download, todayStr } from './util.js';
 import { toast, confirmDialog, setMode, showFatal } from './ui.js';
-import { initDialogs, openTx, openCat, openPass } from './dialogs.js';
+import { initDialogs, openTx, openCat, openPass, deleteTx } from './dialogs.js';
 import { vDashboard } from './views/dashboard.js';
 import { vTx, updateTxList } from './views/transactions.js';
 import { vBudget, budgetStat, budgetTotals, autoBudget, clearBudgets } from './views/budgets.js';
@@ -73,16 +73,16 @@ async function run(fn) {
 let importMode = 'merge';
 
 document.addEventListener('click', (e) => {
+  // ketuk baris transaksi (di bagian yang bukan tombol) untuk mengubahnya
+  const rowEl = e.target.closest('[data-txid]');
+  if (rowEl && !e.target.closest('button, a, input, select') && !rowEl.closest('dialog')) { openTx(rowEl.dataset.txid); return; }
   const el = e.target.closest('[data-action]');
   if (!el || el.closest('dialog')) return;
   const id = el.dataset.id;
   switch (el.dataset.action) {
     case 'add': openTx(); break;
     case 'edit': openTx(id); break;
-    case 'del': run(async () => {
-      const t = await removeTx(id); rerender();
-      if (t) toast('Transaksi dihapus.', { label: 'Batalkan', fn: () => run(async () => { await restoreTx(t); rerender(); }) });
-    }); break;
+    case 'del': deleteTx(id); break;
     case 'prev': view.month = shiftMonth(view.month, -1); rerender(); break;
     case 'next': view.month = shiftMonth(view.month, 1); rerender(); break;
     case 'today': view.month = thisMonth(); rerender(); break;
@@ -176,6 +176,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { if (getTheme() === 'auto') applyTheme(); });
+matchMedia('(max-width: 820px)').addEventListener?.('change', () => { if (state.user) render(); });
 window.addEventListener('hashchange', route);
 initDialogs();
 applyTheme();

@@ -1,5 +1,5 @@
 // Dialog tambah/ubah transaksi, kategori, dan ganti kata sandi.
-import { state, saveTx, saveCat, changePassword } from './store.js';
+import { state, saveTx, saveCat, changePassword, removeTx, restoreTx } from './store.js';
 import { rerender } from './view.js';
 import { $, esc, METHODS, todayStr, parseAmt, fmtInput, monthOf, monthLabel } from './util.js';
 import { toast, busy } from './ui.js';
@@ -20,6 +20,7 @@ export function openTx(id) {
   editingTx = t ? t.id : null;
   $('#txTitle').textContent = t ? 'Ubah transaksi' : 'Catat transaksi';
   $('#saveMore').style.display = t ? 'none' : '';
+  $('#txDelete').hidden = !t;
   const methods = t && !METHODS.includes(t.method) ? [...METHODS, t.method] : METHODS;
   $('#fMethod').innerHTML = methods.map((m) => `<option>${esc(m)}</option>`).join('');
   const type = t ? t.type : 'out';
@@ -48,6 +49,15 @@ async function submitTx(again) {
   if (again) { $('#fAmount').value = ''; $('#fNote').value = ''; $('#txErr').textContent = ''; $('#fAmount').focus(); }
   else $('#txDlg').close();
   rerender(); toast(msg);
+}
+
+// Hapus transaksi, dengan tombol "Batalkan" yang mengirim ulang ID yang sama.
+export async function deleteTx(id) {
+  try {
+    const t = await removeTx(id);
+    rerender();
+    if (t) toast('Transaksi dihapus.', { label: 'Batalkan', fn: async () => { try { await restoreTx(t); rerender(); } catch (e) { toast(e.message); } } });
+  } catch (e) { toast(e.message || 'Gagal menghapus transaksi.'); }
 }
 
 /* ---------- kategori ---------- */
@@ -84,6 +94,7 @@ export function initDialogs() {
   const txForm = $('#txForm');
   txForm.addEventListener('submit', (e) => { e.preventDefault(); submitTx(false); });
   $('#saveMore').addEventListener('click', () => submitTx(true));
+  $('#txDelete').addEventListener('click', () => { const id = editingTx; $('#txDlg').close(); if (id) deleteTx(id); });
   txForm.addEventListener('change', (e) => { if (e.target.name === 'type') fillCats(e.target.value); });
   $('#fAmount').addEventListener('input', (e) => { e.target.value = fmtInput(e.target.value); });
   txForm.addEventListener('click', (e) => {
