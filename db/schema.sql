@@ -63,3 +63,32 @@ create table if not exists kt_auth_attempts (
   at   timestamptz not null default now()
 );
 create index if not exists kt_auth_attempts_key_idx on kt_auth_attempts (key, at);
+
+-- ============================================================================
+-- Pembaruan v2: role (admin/user), paket Pro, target tabungan.
+-- Aman dijalankan ulang di database yang sudah berisi data v1.
+-- ============================================================================
+
+alter table kt_users add column if not exists role          text not null default 'user' check (role in ('admin', 'user'));
+alter table kt_users add column if not exists plan          text not null default 'free' check (plan in ('free', 'pro'));
+alter table kt_users add column if not exists pro_until     timestamptz;   -- null + plan 'pro' = Pro selamanya
+alter table kt_users add column if not exists last_login_at timestamptz;
+
+-- Jika belum ada admin, akun tertua dijadikan admin (berlaku untuk instalasi v1).
+update kt_users set role = 'admin'
+where id = (select id from kt_users order by created_at asc limit 1)
+  and not exists (select 1 from kt_users where role = 'admin');
+
+create table if not exists kt_goals (
+  id             uuid primary key default gen_random_uuid(),
+  user_id        uuid not null references kt_users (id) on delete cascade,
+  name           text not null,
+  icon           text not null default '🎯',
+  color          text not null default '#2E3FA3',
+  target_amount  bigint not null check (target_amount > 0 and target_amount <= 999999999999),
+  saved_amount   bigint not null default 0 check (saved_amount >= 0),
+  deadline       date,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
+);
+create index if not exists kt_goals_user_idx on kt_goals (user_id, created_at);

@@ -77,3 +77,16 @@ export async function verifyToken(token, secret) {
     return null;
   }
 }
+
+// Kata sandi sementara yang mudah dibaca (tanpa 0/O/1/l/I). Memakai pengambilan sampel penolakan agar tidak bias.
+const TEMP_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+export function randomPassword(length = 10) {
+  let out = '';
+  const limit = 256 - (256 % TEMP_ALPHABET.length);
+  while (out.length < length) {
+    for (const b of crypto.getRandomValues(new Uint8Array(length * 2))) {
+      if (b < limit && out.length < length) out += TEMP_ALPHABET[b % TEMP_ALPHABET.length];
+    }
+  }
+  return out;
+}

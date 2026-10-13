@@ -105,6 +105,62 @@
   </form>
 </dialog>
 
+<dialog id="goalDlg" aria-labelledby="goalTitle">
+  <form id="goalForm" autocomplete="off" novalidate>
+    <div class="dlg-head"><h2 id="goalTitle">Target baru</h2><button type="button" class="icon-btn" data-action="close" aria-label="Tutup"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="dlg-body">
+      <div class="field"><label for="goalName">Nama target</label><input id="goalName" name="name" maxlength="40" placeholder="Contoh: Laptop kuliah"></div>
+      <div class="two">
+        <div class="field"><label for="goalTarget">Jumlah target (Rp)</label><input id="goalTarget" name="target" inputmode="numeric" maxlength="16" placeholder="0"></div>
+        <div class="field"><label for="goalDeadline">Tenggat (opsional)</label><input type="date" id="goalDeadline" name="deadline"></div>
+      </div>
+      <div class="two">
+        <div class="field"><label for="goalIcon">Ikon (emoji)</label><input id="goalIcon" name="icon" maxlength="8"></div>
+        <div class="field"><label for="goalColor">Warna</label><input class="colorin" type="color" id="goalColor" name="color" value="#2E3FA3"></div>
+      </div>
+      <div class="err" id="goalErr" role="alert"></div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn ghost" data-action="close">Batal</button>
+      <button type="submit" class="btn primary" id="goalSave">Simpan</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="depDlg" aria-labelledby="depTitle">
+  <form id="depForm" autocomplete="off" novalidate>
+    <div class="dlg-head"><h2 id="depTitle">Setor</h2><button type="button" class="icon-btn" data-action="close" aria-label="Tutup"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="dlg-body">
+      <p class="muted" id="depInfo"></p>
+      <div class="field"><label for="depAmount">Jumlah</label><div class="amt"><span>Rp</span><input id="depAmount" inputmode="numeric" placeholder="0" maxlength="16"></div></div>
+      <div class="err" id="depErr" role="alert"></div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn ghost" data-action="close">Batal</button>
+      <button type="submit" class="btn primary" id="depSave">Setor</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="proDlg" aria-labelledby="proTitle">
+  <div class="dlg-head"><h2 id="proTitle">Kantong <span class="pro-badge">PRO</span></h2><button type="button" class="icon-btn" data-action="close" aria-label="Tutup"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="dlg-body">
+    <p id="proLead"></p>
+    <ul class="pro-list" id="proList"></ul>
+    <p class="muted small">Upgrade dilayani lewat WhatsApp (<span id="proWaNum"></span>). Setelah pembayaran dikonfirmasi, admin mengaktifkan Pro pada akun Anda, dan fitur terbuka otomatis.</p>
+  </div>
+  <div class="dlg-foot">
+    <button type="button" class="btn ghost" data-action="close">Nanti saja</button>
+    <a class="btn gold" id="proWa" href="#" target="_blank" rel="noopener noreferrer">Upgrade via WhatsApp</a>
+  </div>
+</dialog>
+
+<dialog id="userDlg" aria-labelledby="userTitle">
+  <div class="dlg-head"><h2 id="userTitle">Kelola pengguna</h2><button type="button" class="icon-btn" data-action="close" aria-label="Tutup"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="dlg-body" id="userBody"></div>
+  <div class="dlg-foot"><button type="button" class="btn ghost" data-action="close">Tutup</button></div>
+</dialog>
+
 <dialog id="confirmDlg" aria-labelledby="cfTitle">
   <form id="cfForm" autocomplete="off" novalidate>
     <div class="dlg-head"><h2 id="cfTitle"></h2></div>

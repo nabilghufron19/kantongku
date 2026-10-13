@@ -1,7 +1,8 @@
 import { HttpError, json, readJson } from '../../../src/server/http.js';
 import { verifyPassword, DUMMY_HASH } from '../../../src/server/auth.js';
 import { parseUsername } from '../../../src/server/validate.js';
-import { findLoginUser } from '../../../src/server/repo/users.js';
+import { findLoginUser, touchLogin } from '../../../src/server/repo/users.js';
+import { publicUser } from '../../../src/server/plan.js';
 import { issueSessionCookie } from '../../../src/server/session.js';
 import { clearFailures, clientIp, ensureNotLimited, recordFailure } from '../../../src/server/ratelimit.js';
 
@@ -21,6 +22,7 @@ export async function onRequestPost({ request, env, data }) {
     throw new HttpError(401, 'Nama pengguna atau kata sandi salah.');
   }
   await clearFailures(data.sql, username);
+  await touchLogin(data.sql, user.id);
   const cookie = await issueSessionCookie(env, request, user);
-  return json({ user: { id: user.id, username: user.username, name: user.name } }, 200, { 'set-cookie': cookie });
+  return json({ user: publicUser(user) }, 200, { 'set-cookie': cookie });
 }

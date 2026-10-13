@@ -1,12 +1,13 @@
 // Utilitas HTTP bersama untuk seluruh endpoint.
 
 export class HttpError extends Error {
-  constructor(status, message, { field, headers } = {}) {
+  constructor(status, message, { field, headers, code } = {}) {
     super(message);
     this.name = 'HttpError';
     this.status = status;
     this.field = field;
     this.headers = headers;
+    this.code = code;
   }
 }
 
@@ -24,6 +25,7 @@ export function errorResponse(err) {
   if (err instanceof HttpError) {
     const body = { error: err.message };
     if (err.field) body.field = err.field;
+    if (err.code) body.code = err.code;
     return json(body, err.status, err.headers);
   }
   console.error('Kesalahan tak terduga:', err);

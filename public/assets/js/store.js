@@ -1,11 +1,12 @@
 // Status aplikasi di memori + semua aksi yang berbicara dengan server.
-import { api } from './api.js';
+import { api, setDemoHandler } from './api.js';
+import { buildDemoData, createDemoHandler } from './demo.js';
 import { byNewest, monthOf } from './util.js';
 
-export const state = { user: null, cats: [], tx: [], budgets: {}, truncated: false };
+export const state = { user: null, cats: [], tx: [], budgets: {}, goals: [], truncated: false };
 
 export function resetState() {
-  Object.assign(state, { user: null, cats: [], tx: [], budgets: {}, truncated: false });
+  Object.assign(state, { user: null, cats: [], tx: [], budgets: {}, goals: [], truncated: false });
 }
 
 function apply(d) {
@@ -13,10 +14,26 @@ function apply(d) {
   state.cats = d.categories;
   state.tx = d.transactions;
   state.budgets = Object.fromEntries(d.budgets.map((b) => [b.categoryId, b.amount]));
+  state.goals = d.goals || [];
   state.truncated = Boolean(d.truncated);
 }
 
 export async function boot() { apply(await api.get('/bootstrap')); }
+
+/* ---------- peran dan paket ---------- */
+export const isPro = () => Boolean(state.user && state.user.isPro);
+export const isAdmin = () => Boolean(state.user && state.user.role === 'admin');
+export const isDemo = () => Boolean(state.user && state.user.demo);
+
+// Menjalankan fungsi render dengan data contoh (untuk pratinjau fitur Pro yang terkunci).
+let sample;
+export function useSample(fn) {
+  sample ??= buildDemoData();
+  const keep = { cats: state.cats, tx: state.tx, budgets: state.budgets, goals: state.goals };
+  state.cats = sample.categories; state.tx = sample.transactions; state.goals = sample.goals;
+  state.budgets = Object.fromEntries(sample.budgets.map((b) => [b.categoryId, b.amount]));
+  try { return fn(); } finally { Object.assign(state, keep); }
+}
 
 /* ---------- pembacaan ---------- */
 export const catOf = (id) => state.cats.find((c) => c.id === id) || { id, name: '(kategori dihapus)', icon: '❔', color: '#8A8F9E', type: 'out', isFallback: false };
@@ -78,6 +95,24 @@ export async function replaceBudgets(map) {
   state.budgets = { ...map };
 }
 
+/* ---------- target tabungan (Pro) ---------- */
+export async function saveGoal(input, id) {
+  const { goal } = id ? await api.put(`/goals/${id}`, input) : await api.post('/goals', input);
+  const i = state.goals.findIndex((g) => g.id === goal.id);
+  if (i >= 0) state.goals[i] = goal; else state.goals.push(goal);
+  return goal;
+}
+export async function depositGoal(id, amount) {
+  const { goal } = await api.post(`/goals/${id}/deposit`, { amount });
+  const i = state.goals.findIndex((g) => g.id === id);
+  if (i >= 0) state.goals[i] = goal;
+  return goal;
+}
+export async function removeGoal(id) {
+  await api.del(`/goals/${id}`);
+  state.goals = state.goals.filter((g) => g.id !== id);
+}
+
 /* ---------- data ---------- */
 export const exportData = () => api.get('/data/export');
 export async function importData(data, mode) {
@@ -93,7 +128,25 @@ export async function clearData() {
 /* ---------- akun ---------- */
 export async function login(username, password) { await api.post('/auth/login', { username, password }); await boot(); }
 export async function register(name, username, password) { await api.post('/auth/register', { name, username, password }); await boot(); }
-export async function logout() { try { await api.post('/auth/logout'); } finally { resetState(); } }
+export async function logout() {
+  if (isDemo()) { setDemoHandler(null); resetState(); return; }
+  try { await api.post('/auth/logout'); } finally { resetState(); }
+}
+
+// Mode demo: data contoh satu bulan, seluruhnya di browser.
+export async function enterDemo() {
+  setDemoHandler(createDemoHandler());
+  try { await boot(); } catch (e) { setDemoHandler(null); throw e; }
+}
+
+// Menyegarkan role/paket (mis. setelah admin mengaktifkan Pro). Mengembalikan true jika berubah.
+export async function refreshMe() {
+  if (!state.user || isDemo()) return false;
+  const { user } = await api.get('/auth/me');
+  const changed = user.role !== state.user.role || user.plan !== state.user.plan || user.isPro !== state.user.isPro || user.proUntil !== state.user.proUntil;
+  if (changed) await boot();
+  return changed;
+}
 export const changePassword = (currentPassword, newPassword) => api.put('/account/password', { currentPassword, newPassword });
 export async function deleteAccount(password) { await api.del('/account', { password }); resetState(); }
-export async function renameUser(name) { const { user } = await api.patch('/account', { name }); state.user = user; }
+export async function renameUser(name) { const { user } = await api.patch('/account', { name }); state.user = { ...state.user, ...user }; }

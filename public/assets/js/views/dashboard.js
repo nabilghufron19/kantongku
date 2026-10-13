@@ -1,8 +1,9 @@
 import { view } from '../view.js';
-import { state, monthStats, catOf, outCats } from '../store.js';
+import { state, monthStats, catOf, outCats, isPro, isDemo } from '../store.js';
 import { esc, rp, short, fmtDate, shiftMonth, daysIn, thisMonth, todayStr, MONTHS, byNewest } from '../util.js';
 import { donut, dayChart } from '../charts.js';
 import { monthNav, txRow } from './shared.js';
+import { proLock, PRO_CHIP } from './prolock.js';
 
 function budgetRows(s, limit = 5) {
   const rows = outCats().filter((c) => state.budgets[c.id]).map((c) => {
@@ -13,6 +14,23 @@ function budgetRows(s, limit = 5) {
   return '<div class="bud">' + rows.map(({ c, spent, lim, pct }) => `
     <div class="bud-row"><div class="top"><span>${esc(c.icon)} ${esc(c.name)}</span><span class="${pct > 100 ? 'state-over' : pct >= 80 ? 'state-warn' : ''}">${short(spent)} dari ${short(lim)}</span></div>
     <div class="bar ${pct > 100 ? 'over' : pct >= 80 ? 'warn' : ''}"><i style="width:${Math.min(pct, 100)}%"></i></div></div>`).join('') + '</div>';
+}
+
+function walletsBody() {
+  const sums = new Map();
+  for (const t of state.tx) sums.set(t.method, (sums.get(t.method) || 0) + (t.type === 'in' ? t.amount : -t.amount));
+  const rows = [...sums].sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+  if (!rows.length) return '<div class="empty">Belum ada transaksi.</div>';
+  const max = Math.max(...rows.map(([, v]) => Math.abs(v)), 1);
+  return '<div class="wallets">' + rows.map(([name, v]) => `<div class="wallet"><div class="top"><span>${esc(name)}</span><b class="${v < 0 ? 'out' : ''}">${rp(v)}</b></div>
+    <div class="bar"><i style="width:${Math.abs(v) / max * 100}%;background:${v < 0 ? 'var(--out)' : 'var(--accent)'}"></i></div></div>`).join('') + '</div>';
+}
+
+function goalsMini() {
+  const list = state.goals.slice(0, 3);
+  if (!list.length) return '<div class="empty">Belum ada target.<br><a class="btn sm" href="#/anggaran" style="margin-top:12px">Buat target</a></div>';
+  return '<div class="bud">' + list.map((g) => { const pct = Math.min(100, g.savedAmount / g.targetAmount * 100);
+    return `<div class="bud-row"><div class="top"><span>${esc(g.icon)} ${esc(g.name)}</span><span>${Math.round(pct)}%</span></div><div class="bar"><i style="width:${pct}%;background:${esc(g.color)}"></i></div></div>`; }).join('') + '</div>';
 }
 
 export function vDashboard() {
@@ -46,6 +64,7 @@ export function vDashboard() {
   const empty = !state.tx.length;
   return `
   <header class="head"><div><h1>Ringkasan</h1><p class="sub">Gambaran uang masuk dan keluar bulan ini.</p></div>${monthNav()}</header>
+  ${(!isPro() && !isDemo()) ? `<div class="promo"><span>✨ <b>Kantong Pro</b>: laporan tren, target tabungan, saldo per dompet, dan cetak PDF.</span><button class="btn gold sm" data-action="upgrade">Lihat fitur Pro</button></div>` : ''}
   ${state.truncated ? '<div class="banner bad"><span>Jumlah transaksi sangat banyak, hanya 50.000 terbaru yang dimuat. Total saldo mungkin tidak akurat.</span></div>' : ''}
   ${empty ? `<div class="panel empty" style="margin-bottom:18px"><b style="color:var(--ink)">Mulai dengan satu catatan.</b><br>Catat pengeluaran atau pemasukan pertama Anda.<br><div class="btns" style="justify-content:center;margin-top:12px"><button class="btn primary" data-action="add">Catat transaksi</button></div></div>` : ''}
   <section class="hero" aria-label="Posisi keuangan bulan ini">
@@ -66,6 +85,10 @@ export function vDashboard() {
   <div class="grid g2b">
     <section class="panel"><h2>Anggaran<a href="#/anggaran">Atur</a></h2>${budgetRows(s)}</section>
     <section class="panel"><h2>Catatan penting</h2>${ins.length ? `<ul class="insights">${ins.map((i) => `<li>${i}</li>`).join('')}</ul>` : '<div class="empty">Catatan penting muncul setelah ada pengeluaran.</div>'}</section>
+  </div>
+  <div class="grid g2b">
+    <section class="panel"><h2>Saldo per dompet ${isPro() ? '' : PRO_CHIP}</h2>${isPro() ? walletsBody() : proLock({ title: 'Saldo per Dompet', blurb: 'Lihat sisa uang di tunai, rekening bank, dan e-wallet.', render: walletsBody })}</section>
+    <section class="panel"><h2>Target tabungan ${isPro() ? '' : PRO_CHIP}<a href="#/anggaran">Kelola</a></h2>${isPro() ? goalsMini() : proLock({ title: 'Target Tabungan', blurb: 'Pasang target dan pantau progresnya.', render: goalsMini })}</section>
   </div>
   <section class="panel"><h2>Transaksi terbaru<a href="#/transaksi">Lihat semua</a></h2>
     ${recent.length ? `<div class="list">${recent.map((t) => txRow(t, true)).join('')}</div>` : '<div class="empty">Belum ada transaksi bulan ini.</div>'}

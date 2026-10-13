@@ -1,17 +1,22 @@
 // Klien HTTP untuk /api. Semua kesalahan dibungkus ApiError berpesan Bahasa Indonesia.
 export class ApiError extends Error {
-  constructor(status, message, field) {
+  constructor(status, message, field, code) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.field = field;
+    this.code = code;
   }
 }
 
 let unauthorizedHandler = () => {};
+let demoHandler = null;
+// Mode demo: semua permintaan dijawab oleh penangan lokal (tanpa server dan tanpa database).
+export const setDemoHandler = (fn) => { demoHandler = fn; };
 export const onUnauthorized = (fn) => { unauthorizedHandler = fn; };
 
 async function request(method, path, body) {
+  if (demoHandler) return demoHandler(method, path, body === undefined ? {} : body);
   let res;
   try {
     res = await fetch('/api' + path, {
@@ -27,7 +32,7 @@ async function request(method, path, body) {
   let data = null;
   if (text) { try { data = JSON.parse(text); } catch { /* bukan JSON */ } }
   if (!res.ok) {
-    const err = new ApiError(res.status, (data && data.error) || `Permintaan gagal (${res.status}).`, data && data.field);
+    const err = new ApiError(res.status, (data && data.error) || `Permintaan gagal (${res.status}).`, data && data.field, data && data.code);
     // 401 di luar halaman login berarti sesi berakhir
     if (res.status === 401 && !path.startsWith('/auth/')) unauthorizedHandler(err);
     throw err;

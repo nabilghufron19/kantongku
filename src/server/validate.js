@@ -101,3 +101,45 @@ export function parseCategoryInput(body, { withType = true } = {}) {
   if (withType) out.type = parseType(body.type);
   return out;
 }
+
+export function parseGoalInput(body) {
+  return {
+    name: cleanText(body.name, 40, 'name', { required: true }),
+    icon: parseIcon(body.icon ?? '🎯'),
+    color: parseColor(body.color ?? '#2E3FA3'),
+    targetAmount: parseAmount(body.targetAmount, 'targetAmount'),
+    deadline: body.deadline ? parseDate(body.deadline, 'deadline') : null,
+  };
+}
+
+// Setoran positif menambah, negatif menarik.
+export function parseDeposit(body) {
+  const n = body.amount;
+  if (!Number.isInteger(n) || n === 0 || Math.abs(n) > MAX_AMOUNT) {
+    throw bad('Jumlah harus bilangan bulat dan bukan nol.', 'amount');
+  }
+  return n;
+}
+
+// Perubahan oleh admin: { role?, plan?, proDays? | lifetime? }
+export function parseAdminPatch(body) {
+  const out = {};
+  if (body.role !== undefined) {
+    if (body.role !== 'admin' && body.role !== 'user') throw bad('Role harus "admin" atau "user".', 'role');
+    out.role = body.role;
+  }
+  if (body.plan !== undefined) {
+    if (body.plan !== 'free' && body.plan !== 'pro') throw bad('Paket harus "free" atau "pro".', 'plan');
+    out.plan = body.plan;
+    if (body.plan === 'pro') {
+      if (body.lifetime === true) out.lifetime = true;
+      else {
+        const d = body.proDays;
+        if (!Number.isInteger(d) || d < 1 || d > 3650) throw bad('Isi proDays (1-3650) atau lifetime: true.', 'proDays');
+        out.proDays = d;
+      }
+    }
+  }
+  if (!Object.keys(out).length) throw bad('Tidak ada perubahan yang dikirim.');
+  return out;
+}

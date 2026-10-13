@@ -3,12 +3,13 @@ import { verifyPassword } from '../../../src/server/auth.js';
 import { cleanText } from '../../../src/server/validate.js';
 import { deleteUser, getPasswordHash, updateName } from '../../../src/server/repo/users.js';
 import { clearSessionCookie } from '../../../src/server/session.js';
+import { publicUser } from '../../../src/server/plan.js';
 
 export async function onRequestPatch({ request, data }) {
   const body = await readJson(request);
   const name = cleanText(body.name, 40, 'name', { required: true });
   const user = await updateName(data.sql, data.user.id, name);
-  return json({ user: { id: user.id, username: user.username, name: user.name } });
+  return json({ user: publicUser(user) });
 }
 
 // Menghapus akun beserta seluruh datanya (wajib konfirmasi kata sandi).

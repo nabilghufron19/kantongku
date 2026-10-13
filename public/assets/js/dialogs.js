@@ -1,11 +1,12 @@
 // Dialog tambah/ubah transaksi, kategori, dan ganti kata sandi.
-import { state, saveTx, saveCat, changePassword, removeTx, restoreTx } from './store.js';
+import { state, saveTx, saveCat, changePassword, removeTx, restoreTx, saveGoal, depositGoal, isDemo } from './store.js';
 import { rerender } from './view.js';
-import { $, esc, METHODS, todayStr, parseAmt, fmtInput, monthOf, monthLabel } from './util.js';
+import { $, esc, METHODS, todayStr, parseAmt, fmtInput, monthOf, monthLabel, rp } from './util.js';
+import { PRO_FEATURES, waLink, WA_DISPLAY } from './config.js';
 import { toast, busy } from './ui.js';
 
 const EMOJIS = ['🍽️', '🚌', '🛍️', '💡', '💊', '📚', '🎮', '🤲', '🏠', '📱', '👕', '☕', '🎁', '💼', '🏪', '🐾', '✈️', '🧾', '💰', '📦'];
-let editingTx = null, editingCat = null;
+let editingTx = null, editingCat = null, editingGoal = null, depositTarget = null;
 
 /* ---------- transaksi ---------- */
 function fillCats(type, selected) {
@@ -77,6 +78,44 @@ export function openCat(id) {
   f.name.focus();
 }
 
+/* ---------- target tabungan ---------- */
+export function openGoal(id) {
+  const g = id ? state.goals.find((x) => x.id === id) : null;
+  const f = $('#goalForm').elements;
+  editingGoal = g ? g.id : null;
+  $('#goalTitle').textContent = g ? 'Ubah target' : 'Target baru';
+  f.name.value = g ? g.name : '';
+  f.target.value = g ? g.targetAmount.toLocaleString('id-ID') : '';
+  f.deadline.value = g && g.deadline ? g.deadline : '';
+  f.icon.value = g ? g.icon : '🎯';
+  f.color.value = g ? g.color : '#2E3FA3';
+  $('#goalErr').textContent = '';
+  $('#goalDlg').showModal();
+  f.name.focus();
+}
+
+export function openDeposit(id, mode) {
+  const g = state.goals.find((x) => x.id === id); if (!g) return;
+  depositTarget = { id, mode };
+  $('#depTitle').textContent = mode === 'out' ? `Tarik dari "${g.name}"` : `Setor ke "${g.name}"`;
+  $('#depInfo').textContent = `Terkumpul ${rp(g.savedAmount)} dari ${rp(g.targetAmount)}.`;
+  $('#depSave').textContent = mode === 'out' ? 'Tarik' : 'Setor';
+  $('#depAmount').value = '';
+  $('#depErr').textContent = '';
+  $('#depDlg').showModal();
+  $('#depAmount').focus();
+}
+
+// Dialog ajakan upgrade: daftar fitur Pro dan tautan WhatsApp.
+export function openUpgrade(feature) {
+  $('#proLead').textContent = feature ? `${feature} adalah fitur Kantong Pro.` : 'Buka semua fitur Kantong Pro.';
+  $('#proList').innerHTML = PRO_FEATURES.map((f) => `<li><span class="pf-ico" aria-hidden="true">${f.icon}</span><span><b>${esc(f.name)}</b><br><span class="muted small">${esc(f.desc)}</span></span></li>`).join('');
+  const who = state.user && !isDemo() ? ` Nama pengguna saya: ${state.user.username}.` : '';
+  $('#proWa').href = waLink(`Halo, saya ingin upgrade Kantong ke Pro.${who}`);
+  $('#proWaNum').textContent = WA_DISPLAY;
+  $('#proDlg').showModal();
+}
+
 /* ---------- kata sandi ---------- */
 export function openPass() {
   $('#passForm').reset();
@@ -117,6 +156,28 @@ export function initDialogs() {
       await busy($('#catSave'), () => saveCat({ name, icon: f.icon.value.trim() || '📦', color: f.color.value, type: f.type.value }, editingCat));
     } catch (err) { $('#catErr').textContent = err.message; return; }
     $('#catDlg').close(); rerender(); toast('Kategori tersimpan.');
+  });
+
+  $('#goalForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target.elements, target = parseAmt(f.target.value);
+    if (!f.name.value.trim()) { $('#goalErr').textContent = 'Isi nama target.'; return; }
+    if (!target) { $('#goalErr').textContent = 'Isi jumlah target lebih dari nol.'; return; }
+    try {
+      await busy($('#goalSave'), () => saveGoal({ name: f.name.value.trim(), icon: f.icon.value.trim() || '🎯', color: f.color.value, targetAmount: target, deadline: f.deadline.value || null }, editingGoal));
+    } catch (err) { $('#goalErr').textContent = err.message; return; }
+    $('#goalDlg').close(); rerender(); toast('Target tersimpan.');
+  });
+  $('#goalTarget').addEventListener('input', (e) => { e.target.value = fmtInput(e.target.value); });
+  $('#depAmount').addEventListener('input', (e) => { e.target.value = fmtInput(e.target.value); });
+  $('#depForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const amount = parseAmt($('#depAmount').value);
+    if (!amount) { $('#depErr').textContent = 'Isi jumlah lebih dari nol.'; return; }
+    try {
+      await busy($('#depSave'), () => depositGoal(depositTarget.id, depositTarget.mode === 'out' ? -amount : amount));
+    } catch (err) { $('#depErr').textContent = err.message; return; }
+    $('#depDlg').close(); rerender(); toast(depositTarget.mode === 'out' ? 'Penarikan dicatat.' : 'Setoran dicatat.');
   });
 
   $('#passForm').addEventListener('submit', async (e) => {

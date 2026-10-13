@@ -3,6 +3,7 @@ import { HttpError, parseCookies, serializeCookie, isHttps } from './http.js';
 import { signToken, verifyToken } from './auth.js';
 import { isUuid } from './validate.js';
 import { getAuthUser } from './repo/users.js';
+import { isProUser } from './plan.js';
 
 export const COOKIE_NAME = 'kantong_session';
 export const SESSION_DAYS = 30;
@@ -30,5 +31,5 @@ export async function authenticate({ request, env, data }) {
   if (!payload || !isUuid(payload.sub)) throw new HttpError(401, 'Sesi tidak valid atau sudah berakhir.');
   const user = await getAuthUser(data.sql, payload.sub);
   if (!user || user.tokenVersion !== payload.tv) throw new HttpError(401, 'Sesi sudah berakhir. Silakan masuk lagi.');
-  return user;
+  return { ...user, isPro: isProUser(user) };
 }

@@ -34,6 +34,7 @@ export const dayName = (d) => { const [y, m, dd] = d.split('-').map(Number); ret
 export const parseAmt = (s) => Number(String(s).replace(/\D/g, '')) || 0;
 export const fmtInput = (s) => { const d = String(s).replace(/\D/g, '').slice(0, 12); return d ? Number(d).toLocaleString('id-ID') : ''; };
 export const niceStep = (x) => { const p = Math.pow(10, Math.floor(Math.log10(x))); const f = x / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; };
+export const fmtDateTime = (iso) => { if (!iso) return '-'; const d = new Date(iso); return Number.isNaN(d.getTime()) ? '-' : `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getFullYear()}`; };
 export const byNewest = (a, b) => b.date.localeCompare(a.date) || String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
 
 export const ic = (p) => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
@@ -46,8 +47,17 @@ export const P = {
   trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
   left: '<path d="M15 5l-7 7 7 7"/>',
   right: '<path d="M9 5l7 7-7 7"/>',
+  trend: '<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>',
+  shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/>',
 };
-export const TABS = [['ringkasan', 'Ringkasan', P.chart], ['transaksi', 'Transaksi', P.list], ['anggaran', 'Anggaran', P.target], ['pengaturan', 'Pengaturan', P.sliders]];
+export const TABS = [
+  { id: 'ringkasan', label: 'Ringkasan', short: 'Beranda', icon: P.chart },
+  { id: 'transaksi', label: 'Transaksi', short: 'Transaksi', icon: P.list },
+  { id: 'anggaran', label: 'Anggaran', short: 'Anggaran', icon: P.target },
+  { id: 'laporan', label: 'Laporan', short: 'Laporan', icon: P.trend, pro: true },
+  { id: 'pengaturan', label: 'Pengaturan', short: 'Setelan', icon: P.sliders },
+  { id: 'admin', label: 'Admin', short: 'Admin', icon: P.shield, admin: true },
+];
 
 export function download(name, text, type) {
   const a = document.createElement('a');

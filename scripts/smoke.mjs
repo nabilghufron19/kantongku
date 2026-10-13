@@ -31,6 +31,11 @@ if (!cookie) process.exit(1);
 
 const boot = await call('GET', '/bootstrap');
 check(boot.status === 200 && boot.data.categories.length > 0, 'bootstrap', `${boot.data?.categories?.length} kategori`);
+check(['admin', 'user'].includes(boot.data.user.role), 'peran pengguna', `${boot.data.user.role}, Pro: ${boot.data.user.isPro}`);
+const goalsTry = await call('GET', '/goals');
+check(boot.data.user.isPro ? goalsTry.status === 200 : goalsTry.status === 403 && goalsTry.data?.code === 'pro_required', 'target tabungan dijaga paket Pro', `HTTP ${goalsTry.status}`);
+const adminTry = await call('GET', '/admin/users');
+check(boot.data.user.role === 'admin' ? adminTry.status === 200 : adminTry.status === 403, 'endpoint admin dijaga role', `HTTP ${adminTry.status}`);
 const cat = boot.data.categories.find((c) => c.type === 'out');
 
 const today = new Date().toISOString().slice(0, 10);

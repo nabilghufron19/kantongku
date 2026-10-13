@@ -116,16 +116,41 @@ test('login: dibatasi setelah terlalu banyak kegagalan', async () => {
   assert.equal(res.headers.get('retry-after'), '900');
 });
 
-test('register: tertutup jika sudah ada pengguna, terbuka untuk akun pertama', async () => {
+test('register: terbuka untuk umum, akun pertama jadi admin, berikutnya user', async () => {
   const mk = (n, env = {}) => makeCtx(
     makeRequest('POST', '/api/auth/register', { body: { username: 'Budi', password: 'sandi-panjang-1', name: 'Budi' } }),
     { sql: fakeSql((t) => (t.includes('count(*)') ? [{ n }] : [])), env: { PBKDF2_ITERATIONS: '1000', ...env } },
   );
-  assert.equal((await call(register.onRequestPost, mk(1))).status, 403);
-  assert.equal((await call(register.onRequestPost, mk(1, { ALLOW_REGISTER: 'true' }))).status, 201);
   const first = await call(register.onRequestPost, mk(0));
   assert.equal(first.status, 201);
-  assert.equal((await first.json()).user.username, 'budi');
+  const f = (await first.json()).user;
+  assert.equal(f.username, 'budi');
+  assert.equal(f.role, 'admin');
+  assert.equal(f.isPro, true);
+  const next = await call(register.onRequestPost, mk(5));
+  assert.equal(next.status, 201);
+  const u = (await next.json()).user;
+  assert.equal(u.role, 'user');
+  assert.equal(u.plan, 'free');
+  assert.equal(u.isPro, false);
+});
+
+test('register: ALLOW_REGISTER=false menutup pendaftaran kecuali akun pertama', async () => {
+  const mk = (n) => makeCtx(
+    makeRequest('POST', '/api/auth/register', { body: { username: 'budi', password: 'sandi-panjang-1' } }),
+    { sql: fakeSql((t) => (t.includes('count(*)') ? [{ n }] : [])), env: { PBKDF2_ITERATIONS: '1000', ALLOW_REGISTER: 'false' } },
+  );
+  assert.equal((await call(register.onRequestPost, mk(3))).status, 403);
+  assert.equal((await call(register.onRequestPost, mk(0))).status, 201);
+});
+
+test('register: ADMIN_USERNAME menentukan siapa yang menjadi admin', async () => {
+  const mk = (username) => makeCtx(
+    makeRequest('POST', '/api/auth/register', { body: { username, password: 'sandi-panjang-1' } }),
+    { sql: fakeSql((t) => (t.includes('count(*)') ? [{ n: 0 }] : [])), env: { PBKDF2_ITERATIONS: '1000', ADMIN_USERNAME: 'Nabil' } },
+  );
+  assert.equal((await (await call(register.onRequestPost, mk('orang_lain'))).json()).user.role, 'user');
+  assert.equal((await (await call(register.onRequestPost, mk('nabil'))).json()).user.role, 'admin');
 });
 
 test('register: nama pengguna ganda -> 409', async () => {

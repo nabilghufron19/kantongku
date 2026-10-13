@@ -44,3 +44,45 @@ export function dayChart(m, byDay) {
   }).join('');
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pengeluaran harian">${g}${bars}</svg>`;
 }
+
+const DOW_SHORT = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+const narrowNow = () => window.matchMedia('(max-width: 820px)').matches;
+
+// Batang berpasangan: pemasukan (hijau) dan pengeluaran (merah) per bulan.
+export function monthsChart(stats) {
+  const narrow = narrowNow();
+  const W = narrow ? 340 : 640, H = narrow ? 200 : 230, L = narrow ? 40 : 46, B = 26, T = 10, R = 6, n = stats.length;
+  const max = Math.max(...stats.flatMap((s) => [s.inc, s.out]), 1), step = niceStep(max / 4), top = step * Math.ceil(max / step);
+  const gw = (W - L - R) / n, bw = gw * 0.34, ch = H - T - B;
+  let g = '';
+  for (let v = 0; v <= top + 1e-9; v += step) {
+    const y = T + ch * (1 - v / top);
+    g += `<line x1="${L}" x2="${W - R}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${L - 6}" y="${y + 4}" text-anchor="end">${short(v)}</text>`;
+  }
+  const bars = stats.map((s, i) => {
+    const x0 = L + i * gw + gw * 0.14, hi = ch * s.inc / top, ho = ch * s.out / top;
+    const label = MONTHS[+s.m.slice(5) - 1].slice(0, 3);
+    return `<rect x="${x0}" y="${T + ch - hi}" width="${bw}" height="${hi}" rx="2.5" fill="var(--in)"><title>${label} pemasukan: ${rp(s.inc)}</title></rect>` +
+      `<rect x="${x0 + bw + 2}" y="${T + ch - ho}" width="${bw}" height="${ho}" rx="2.5" fill="var(--out)"><title>${label} pengeluaran: ${rp(s.out)}</title></rect>` +
+      `<text x="${x0 + bw}" y="${H - 8}" text-anchor="middle">${label}</text>`;
+  }).join('');
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pemasukan dan pengeluaran per bulan">${g}${bars}</svg>`;
+}
+
+// 7 batang (Senin sampai Minggu); hari paling boros berwarna emas.
+export function weekdayChart(sums) {
+  const narrow = narrowNow();
+  const W = narrow ? 340 : 400, H = 190, L = narrow ? 40 : 46, B = 24, T = 10, R = 6;
+  const max = Math.max(...sums, 1), step = niceStep(max / 3), top = step * Math.ceil(max / step);
+  const gw = (W - L - R) / 7, ch = H - T - B, peak = sums.indexOf(Math.max(...sums));
+  let g = '';
+  for (let v = 0; v <= top + 1e-9; v += step) {
+    const y = T + ch * (1 - v / top);
+    g += `<line x1="${L}" x2="${W - R}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${L - 6}" y="${y + 4}" text-anchor="end">${short(v)}</text>`;
+  }
+  const bars = sums.map((v, i) => {
+    const h = ch * v / top, x = L + i * gw + gw * 0.18, w = gw * 0.64;
+    return `<rect x="${x}" y="${T + ch - h}" width="${w}" height="${h}" rx="3" fill="${i === peak && v > 0 ? 'var(--gold)' : 'var(--accent)'}"><title>${DOW_SHORT[i]}: ${rp(v)}</title></rect><text x="${x + w / 2}" y="${H - 7}" text-anchor="middle">${DOW_SHORT[i]}</text>`;
+  }).join('');
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pengeluaran per hari dalam seminggu">${g}${bars}</svg>`;
+}

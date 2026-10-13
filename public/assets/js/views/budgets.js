@@ -1,8 +1,10 @@
 import { view, rerender } from '../view.js';
-import { state, monthStats, outCats, replaceBudgets } from '../store.js';
+import { state, monthStats, outCats, replaceBudgets, isPro } from '../store.js';
 import { esc, rp, shiftMonth, thisMonth } from '../util.js';
 import { confirmDialog, toast } from '../ui.js';
 import { monthNav } from './shared.js';
+import { PRO_CHIP } from './prolock.js';
+import { vGoalsSection } from './goals.js';
 
 export function budgetStat(id) {
   const spent = monthStats(view.month).byCat[id] || 0, lim = state.budgets[id] || 0, pct = lim ? spent / lim * 100 : 0;
@@ -24,14 +26,15 @@ export function budgetTotals() {
 
 export function vBudget() {
   return `
-  <header class="head"><div><h1>Anggaran</h1><p class="sub">Tentukan batas belanja tiap kategori per bulan.</p></div>${monthNav()}</header>
+  <header class="head"><div><h1>Anggaran &amp; Target</h1><p class="sub">Batas belanja tiap kategori dan target tabungan Anda.</p></div>${monthNav()}</header>
   <section class="panel" style="margin-bottom:18px"><div id="bsum">${budgetTotals()}</div>
-    <div class="btns" style="margin-top:16px"><button class="btn" data-action="autobudget">Isi dari rata-rata 3 bulan terakhir</button><button class="btn ghost danger" data-action="clearbudget">Kosongkan semua batas</button></div></section>
+    <div class="btns" style="margin-top:16px"><button class="btn" data-action="autobudget">Isi dari rata-rata 3 bulan terakhir ${isPro() ? '' : PRO_CHIP}</button><button class="btn ghost danger" data-action="clearbudget">Kosongkan semua batas</button></div></section>
   <section class="panel">${outCats().map((c) => `
     <div class="brow"><div class="bname"><div class="ico" style="--c:${esc(c.color)}">${esc(c.icon)}</div>${esc(c.name)}</div>
       <div class="bmid" data-bstat="${esc(c.id)}">${budgetStat(c.id)}</div>
       <label class="budget-in"><span class="muted">Rp</span><input inputmode="numeric" data-budget="${esc(c.id)}" value="${state.budgets[c.id] ? Number(state.budgets[c.id]).toLocaleString('id-ID') : ''}" placeholder="0" aria-label="Batas bulanan ${esc(c.name)}"></label></div>`).join('')}
-  </section>`;
+  </section>
+  ${vGoalsSection()}`;
 }
 
 export async function autoBudget() {

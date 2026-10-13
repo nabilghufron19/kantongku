@@ -2,6 +2,7 @@
 import { HttpError, errorResponse } from '../../src/server/http.js';
 import { getSql } from '../../src/server/db.js';
 import { authenticate } from '../../src/server/session.js';
+import { requireAdmin } from '../../src/server/plan.js';
 
 const PUBLIC_PATHS = new Set([
   '/api/health',
@@ -28,7 +29,10 @@ export async function guard(context) {
     if (path === '/api/health') return await context.next();
 
     context.data.sql ??= await getSql(env);
-    if (!PUBLIC_PATHS.has(path)) context.data.user = await authenticate(context);
+    if (!PUBLIC_PATHS.has(path)) {
+      context.data.user = await authenticate(context);
+      if (path.startsWith('/api/admin')) requireAdmin(context.data.user);
+    }
     return await context.next();
   } catch (err) {
     return errorResponse(err);

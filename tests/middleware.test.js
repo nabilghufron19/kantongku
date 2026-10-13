@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { guard } from '../functions/api/_middleware.js';
 import { signToken } from '../src/server/auth.js';
-import { fakeSql, makeRequest, USER } from './helpers.js';
+import { fakeSql, makeRequest, USER, ADMIN } from './helpers.js';
 
 const SECRET = 'rahasia-uji-yang-cukup-panjang';
 const ok = () => new Response('lolos', { status: 200 });
@@ -61,4 +61,16 @@ test('DATABASE_URL kosong memberi pesan jelas', async () => {
   const res = await guard({ request: makeRequest('GET', '/api/bootstrap'), env: { JWT_SECRET: SECRET }, data: {}, next: ok });
   assert.equal(res.status, 500);
   assert.match((await res.json()).error, /DATABASE_URL/);
+});
+
+test('jalur /api/admin: pengguna biasa 403, admin lolos', async () => {
+  const cookieFor = async (u) => `kantong_session=${await signToken({ sub: u.id, tv: 0, exp: Math.floor(Date.now() / 1000) + 600 }, SECRET)}`;
+  const sqlFor = (u) => fakeSql((t) => (t.includes('from kt_users') ? [{ ...u }] : []));
+
+  const biasa = await run(makeRequest('GET', '/api/admin/users', { cookie: await cookieFor(USER) }), sqlFor(USER));
+  assert.equal(biasa.status, 403);
+  assert.equal((await biasa.json()).code, 'admin_required');
+
+  const admin = await run(makeRequest('GET', '/api/admin/users', { cookie: await cookieFor(ADMIN) }), sqlFor(ADMIN));
+  assert.equal(admin.status, 200);
 });

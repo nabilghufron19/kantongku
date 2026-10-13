@@ -11,13 +11,14 @@ export function toast(msg, action) {
 }
 
 // Mengembalikan null jika dibatalkan, atau { password } jika dilanjutkan.
-export function confirmDialog({ title, message, okLabel = 'Lanjutkan', danger = false, askPassword = false }) {
+export function confirmDialog({ title, message, okLabel = 'Lanjutkan', danger = false, askPassword = false, hideCancel = false }) {
   return new Promise((resolve) => {
     const dlg = $('#confirmDlg'), form = $('#cfForm'), cancel = $('#cfCancel');
     $('#cfTitle').textContent = title;
     $('#cfMsg').textContent = message;
     $('#cfOk').textContent = okLabel;
     $('#cfOk').className = 'btn ' + (danger ? 'danger-solid' : 'primary');
+    cancel.hidden = hideCancel;
     $('#cfPassWrap').hidden = !askPassword;
     $('#cfPass').value = '';
     $('#cfErr').textContent = '';

@@ -12,7 +12,9 @@ export async function onRequestGet({ env, data }) {
   };
   try {
     const sql = data.sql ?? (await getSql(env));
-    const rows = await sql`select to_regclass('public.kt_users') is not null as schema_ok`;
+    const rows = await sql`
+      select (to_regclass('public.kt_users') is not null and to_regclass('public.kt_goals') is not null
+              and exists (select 1 from information_schema.columns where table_name = 'kt_users' and column_name = 'role')) as schema_ok`;
     status.database = true;
     status.schema = Boolean(rows[0] && rows[0].schema_ok);
   } catch (err) {
